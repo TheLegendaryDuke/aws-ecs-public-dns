@@ -30,7 +30,7 @@ exports.handler = async (event, context, callback) => {
         console.log(`Skipping. Reason: no "domain" and/or "hostedZoneId" tags found for cluster ${clusterArn}`);
         return;
     }
-    
+
     const eniId = getEniId(task);
     if (!eniId) {
         console.log('Network interface not found');
@@ -41,10 +41,13 @@ exports.handler = async (event, context, callback) => {
     const serviceName = task.group.split(":")[1]
     console.log(`task:${serviceName} public-id: ${taskPublicIp}`)
 
-    const containerDomain = `${serviceName}.${domain}`
-    const changeRecordSet = createChangeRecordSet(containerDomain, taskPublicIp)
+    var containerDomain = `${serviceName}.${domain}`
+    if (serviceName === 'tutor-frontend') {
+        containerDomain = domain
+    }
+    const recordSet = createRecordSet(containerDomain, taskPublicIp)
 
-    await updateDnsRecord(clusterName, hostedZoneId, changeRecordSet)
+    await updateDnsRecord(clusterName, hostedZoneId, recordSet)
     console.log(`DNS record update finished for ${containerDomain} (${taskPublicIp})`)
 };
 
@@ -89,7 +92,7 @@ async function fetchEniPublicIp(eniId) {
     return data.NetworkInterfaces[0].PrivateIpAddresses[0].Association.PublicIp;
 }
 
-function createChangeRecordSet(domain, publicIp) {
+function createRecordSet(domain, publicIp) {
     return {
         "Action": "UPSERT",
         "ResourceRecordSet": {
